@@ -3,9 +3,13 @@ import tkinter as tk
 from time import strftime
 from datetime import datetime, timedelta
 import pandas as pd
+import os
+from dotenv import load_dotenv
 
-key = "AIzaSyD74r3xYhg9ADJdpoJnIWjW-nzu8bNkOug"
-gmaps = googlemaps.Client(key=key)
+load_dotenv()
+key = os.getenv("API_KEY")
+print(key)
+gmaps = googlemaps.Client(key)
 
 """def getDist(origin, dest):
     result = gmaps.distance_matrix(origin, dest)
@@ -16,8 +20,10 @@ gmaps = googlemaps.Client(key=key)
         print("no work")
         return -1"""
 
+
 def getDist(x, y):
     return 120
+
 
 def update_time(arr):
     row, box, col = arr
@@ -25,10 +31,12 @@ def update_time(arr):
     row[col] = current_time
     box.config(text=current_time)
 
+
 def save_drive(root, row):
     df.loc[len(df.index)] = row
     df.to_csv("data.csv", index=False)
     root.destroy()
+
 
 def newOrder(df, column_names):
     root = tk.Toplevel()
@@ -48,12 +56,14 @@ def newOrder(df, column_names):
     save = tk.Button(root, text="Save", command=lambda row=row: save_drive(root, row))
     save.grid(row=1, column=len(column_names) + 1)
 
+
 def get_inputs():
     store_name = entries[0].get()
     address = entries[1].get()
     payout = entries[2].get()
 
     return store_name, address, payout
+
 
 def show_rate():
     store_name, address, payout = get_inputs()
@@ -62,7 +72,8 @@ def show_rate():
 
     result_label.config(text=f"This order pays ${rate}/hour")
 
-def calculate_time(): #untested
+
+def calculate_time():  #untested
     # Get values
     store, customer, payout = get_inputs()
 
@@ -94,6 +105,7 @@ def calculate_time(): #untested
     # Set all variables for df
 
     return total
+
 
 def accept():
     # Make sure variables are set for df
@@ -128,6 +140,7 @@ def accept():
     newOrder(df, column_names)
     return
 
+
 def decline():
     # Set decline
 
@@ -135,6 +148,7 @@ def decline():
 
     # Reset text boxes
     return
+
 
 def reset():
     storeLocation = False
