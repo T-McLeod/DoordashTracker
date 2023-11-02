@@ -1,14 +1,13 @@
 import googlemaps
 import tkinter as tk
-from time import strftime
-from datetime import datetime, timedelta
+# from time import strftime
+from datetime import datetime  # , timedelta
 import pandas as pd
 import os
 from dotenv import load_dotenv
 
 load_dotenv()
 key = os.getenv("API_KEY")
-print(key)
 gmaps = googlemaps.Client(key)
 
 """def getDist(origin, dest):
@@ -25,35 +24,49 @@ def getDist(x, y):
     return 120
 
 
-def update_time(arr):
-    row, box, col = arr
-    current_time = strftime('%H:%M:%S')
-    row[col] = current_time
-    box.config(text=current_time)
+def update_time(timeStamps, idx, box):
+    current_time = datetime.now()
+    timeStamps[idx] = current_time
+    box.config(text=current_time.strftime("%H:%M:%S"))
 
 
-def save_drive(root, row):
-    df.loc[len(df.index)] = row
-    df.to_csv("data.csv", index=False)
+def save_drive(root, row, timeStamps):
+    times = ["order ID", "Time to store", "Time at store", "Time to customer"
+             "Time at customer", "Time to zone"]
+    # last = datetime.strptime(times[0], '%Y-%m-%d %H:%M:%S')
+    for i, col in enumerate(times[1:]):
+        delta = timeStamps[i+1] - timeStamps[i]
+        row[col] = delta.total_seconds()
+
+    actualDF.loc[len(actualDF.index)] = row
+    actualDF.to_csv("data.csv", index=False)
     root.destroy()
 
 
-def newOrder(df, column_names):
+def newOrder(row):
+    column_names = [col for col, value in row.items()]
     root = tk.Toplevel()
     root.title("Time Table App")
-    row = pd.Series({col: None for col in df.columns}) # Pull from last row instead of new row
+    timeStamps = [None]*(1 + len(column_names))
+    timeStamps[0] = datetime.now()
 
-    for idx, col_name in enumerate(column_names):
+    for idx, col_name in enumerate(times[1:]):
         col = tk.Label(root, text=col_name, font=('calibri', 12, 'bold'))
         col.grid(row=0, column=idx+1, padx=10)
 
-        box = tk.Label(root, text="", font=('calibri', 12), width=12, borderwidth=1, relief='solid')
+        box = tk.Label(root, text="", font=('calibri', 12), width=12,
+                       borderwidth=1, relief='solid')
         box.grid(row=1, column=idx+1)
 
-        update_button = tk.Button(root, text="Update", command=lambda b=[row, box, col_name]: update_time(b))
+        update_button = tk.Button(root, text="Update",
+                                  command=lambda t=timeStamps, i=idx, box=box:
+                                  update_time(t, i + 1, box))
+
         update_button.grid(row=2, column=idx+1)
 
-    save = tk.Button(root, text="Save", command=lambda row=row: save_drive(root, row))
+    save = tk.Button(root, text="Save",
+                     command=lambda
+                     row=row, t=timeStamps: save_drive(root, row, t))
     save.grid(row=1, column=len(column_names) + 1)
 
 
@@ -67,82 +80,75 @@ def get_inputs():
 
 def show_rate():
     store_name, address, payout = get_inputs()
+    row = pd.Series({col: None for col in orderInfoDF.columns})
+    row['Order ID'] = generateOrderID()
+    row["Origin"] = getOrigin()
+    row['Store Location'] = ""  # get store
+    row["Customer Address"] = address
+    row['Payout'] = payout
 
-    rate = float(payout) / (float(calculate_time()) / 3600)
+    rate = float(payout) / (float(calculate_time(row)) / 3600)
 
     result_label.config(text=f"This order pays ${rate}/hour")
 
 
-def calculate_time():  #untested
+def calculate_time(row):  # untested
     # Get values
-    store, customer, payout = get_inputs()
+    storeLocation = row['Store Location']
+    customer = row['Customer Address']
 
-        # Get origin = TBD
-    origin = "107 Ashton Drive, 28115 Mooresville North Carolina"
-        # Get store = ??
-        # gmaps.getPlacesNearby
+    #  Get store = ??
+    #  gmaps.getPlacesNearby
     storeLocation = {'lat': 35.9424814, 'lng': -78.9072968}
 
     # calculate eta for trip
-        
-    pickup_drive = getDist(origin, storeLocation)
+    pickup_drive = getDist(row['origin'], storeLocation)
     pickup_store = 120
-        
+
     dropoff_drive = getDist(storeLocation, customer)
     dropoff_time = 60
 
     downtime = 300
 
-    total = pickup_drive + pickup_store + dropoff_drive + dropoff_time + downtime
-    times[0] = pickup_drive
-    times[1] = pickup_store
-    times[2] = dropoff_drive
-    times[3] = dropoff_time
-    times[4] = downtime
-    timesUpdated = True
-        
-    
-    # Set all variables for df
+    row = pd.Series({col: None for col in predictedDF.columns})
 
-    return total
+    row["Time to store"] = pickup_drive
+    row["Time at store"] = pickup_store
+    row["Time to customer"] = dropoff_drive
+    row["Time at customer"] = dropoff_time
+    row["Time to zone"] = downtime
+
+    return (pickup_drive + pickup_store + dropoff_drive + dropoff_time +
+            downtime)
 
 
 def accept():
     # Make sure variables are set for df
-    row = pd.Series({col: None for col in df.columns})
-    print(timesUpdated)
-    
-    if(not timesUpdated): #Fix this
-        calculate_time()
+    rowInfo = orderInfoDF.loc[len(actualDF.index) - 1]
+    if rowInfo["order ID"] == actualDF.loc[len(actualDF.index) - 1]["order ID"]:
+        print("Didn't submit new order")
 
-    row['order ID'] = 1 # Change
-    row['origin'] = "here" # Change
-    row['store location'] = storeLocation
-    row['Customer Address'] = entries[1].get()
-    row['Payout'] = entries[2].get()
+    row = pd.Series({col: None for col in actualDF.columns})
 
-    time = datetime.now()
-    row['Time accepeted'] = time
+    row['order ID'] = rowInfo["order ID"]
 
-    keys = ["Est to Store", "Est leave store", "Est arrived customer", "Est dropped food", "Est back to zone"]
-    for i in range(len(keys)):
-        time = time + timedelta(seconds=times[i])
-        row[keys[i]] = time
-    
     # Set accepted
-    row['Accepted'] = True
-    print(row)
+    rowInfo['Accepted'] = True
 
-    # Backup?
-    df.loc[len(df)] = row
+    # Backup
 
-    # New order
-    newOrder(df, column_names)
+    newOrder(row)
     return
 
 
-def decline():
+def generateOrderID():  # TODO Pattern for generating OrderID
+    return 420
+
+
+def declineOrder():  # TODO finish
+    rowInfo = orderInfoDF.loc[len(actualDF.index) - 1]
     # Set decline
+    rowInfo['Accepted'] = False
 
     # Backup to df
 
@@ -150,31 +156,31 @@ def decline():
     return
 
 
-def reset():
-    storeLocation = False
-    timesUpdated = False
+def getOrigin():
+    return
 
 
-    
 root = tk.Tk()
 root.title("Main Window")
 
 # Create labels for column names
-meta = ['order ID', 'origin', 'store location', 'Customer Address', 'Accepted', 'Payout', 'Time accepeted', "Est to Store", "Est leave store","Est arrived customer", "Est dropped food", "Est back to zone"]
-column_names = ["Arrived at Store", "Left from store", "Dropped food", "Back to zone"]
-df = pd.DataFrame(columns=(meta + column_names))
+orderInfo = ['Order ID', 'Origin', 'Store Location', 'Customer Address',
+             'Accepted', 'Payout', 'wasAccepted']
+times = ["order ID", "Time to store", "Time at store", "Time to customer"
+         "Time at customer", "Time to zone"]
 
-timesUpdated = False
-times = [0]*5
+orderInfoDF = pd.DataFrame(columns=orderInfo)
+predictedDF = pd.DataFrame(columns=times)
+actualDF = pd.DataFrame(columns=times)
 
 storeLocation = {}
-timesUpdated = False
 
 # Main window
 input_frame = tk.Frame(root)
 input_frame.pack()
 
-# Create labels and entry widgets for each input, and pack them side by side inside the frame
+# Create labels and entry widgets for each input,
+# and pack them side by side inside the frame
 labels = ['Store', 'Customer Address', 'Payout']
 entries = []
 
