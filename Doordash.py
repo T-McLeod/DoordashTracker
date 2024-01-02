@@ -80,44 +80,46 @@ def get_inputs():
 
 
 def show_rate():
-    print("here 1")
+    global currentOrder
+
     store_name, address, payout = get_inputs()
-    row = pd.Series({col: None for col in orderInfoDF.columns})
-    print("here 2")
-    row['Order ID'] = generateOrderID()
-    row["Origin"] = (52.50931,13.42936) # location.getDeviceLocation()
-    row['Store Location'] = (52.50274,13.43872) # location.searchPlace(row['Origin'], store_name)
-    row["Customer Address"] = (52.50931,13.42936) # location.addressToLocation(address, row["Origin"])
-    row['Payout'] = payout
-    print("here 3")
+    rowInfo = getNewRow(orderInfoDF, 000000)
+    currentOrder = rowInfo.index
+    rowInfo["Origin"] = (52.50931,13.42936) # location.getDeviceLocation()
+    rowInfo['Store Location'] = (52.50274,13.43872) # location.searchPlace(row['Origin'], store_name)
+    rowInfo["Customer Address"] = (52.50931,13.42936) # location.addressToLocation(address, row["Origin"])
+    rowInfo['Payout'] = payout
     # TODO customer address -> customer location
-    finalTime, subTimes = [600, [200, 400]] # location.routeRequest([row['Origin'], row['Store Location'], row['Customer Address']])
+    finalTime, subTimes = 600, [200, 400] # location.routeRequest([row['Origin'], row['Store Location'], row['Customer Address']])
 
     rate = float(payout) / (finalTime / 3600)
 
     result_label.config(text=f"This order pays ${round(rate, 2)}/hour")
-    print("here 4")
-    # Update df entry
-    row["Time to store"] = subTimes[0]
-    row["Time at store"] = 120 # TODO add estimation for this
-    row["Time to customer"] = subTimes[1]
-    row["Time at customer"] = 60 # TODO add estimation for this
-    row["Time to zone"] = 300 # TODO add estimation for this
 
-    actualDF.append(row)
+    rowPredicted = getNewRow(predictedDF, 000000)
+    # Update df entry
+    rowPredicted["Time to store"] = subTimes[0]
+    rowPredicted["Time at store"] = 120 # TODO add estimation for this
+    rowPredicted["Time to customer"] = subTimes[1]
+    rowPredicted["Time at customer"] = 60 # TODO add estimation for this
+    rowPredicted["Time to zone"] = 300 # TODO add estimation for this
+
+    print(rowPredicted)
+    print(predictedDF)
+    # updateRow(predictedDF, rowPredicted)
 
 def accept():
+    global currentOrder
+    
     # Make sure variables are set for df
-    rowInfo = orderInfoDF.loc[len(actualDF.index) - 1]
-    if rowInfo["order ID"] == actualDF.loc[len(actualDF.index) - 1]["order ID"]:
+    if currentOrder in actualDF.index:
         print("Didn't submit new order")
+        return
 
-    row = pd.Series({col: None for col in actualDF.columns})
-
-    row['order ID'] = rowInfo["order ID"]
+    row = getNewRow(actualDF, currentOrder)
 
     # Set accepted
-    rowInfo['Accepted'] = True
+    actualDF.loc[currentOrder, 'Accepted'] = True
 
     # Backup
 
@@ -139,6 +141,15 @@ def declineOrder():  # TODO finish
     # Reset text boxes
     return
 
+def getNewRow(df, id):
+    df.loc[id] = pd.Series(dtype=str)
+    return df.loc[id]
+
+def updateRow(df, row):
+    print(df)
+    # print(row)
+    df.loc[row.index] = row
+    # TODO save?
 
 root = tk.Tk()
 root.title("Main Window")
@@ -146,12 +157,14 @@ root.title("Main Window")
 # Create labels for column names
 orderInfo = ['Order ID', 'Origin', 'Store Location', 'Customer Address',
              'Accepted', 'Payout', 'wasAccepted']
-times = ["order ID", "Time to store", "Time at store", "Time to customer"
+times = ["Order ID", "Time to store", "Time at store", "Time to customer"
          "Time at customer", "Time to zone"]
 
-orderInfoDF = pd.DataFrame(columns=orderInfo)
-predictedDF = pd.DataFrame(columns=times)
-actualDF = pd.DataFrame(columns=times)
+orderInfoDF = pd.DataFrame(columns=orderInfo).set_index('Order ID')
+predictedDF = pd.DataFrame(columns=times).set_index('Order ID')
+actualDF = pd.DataFrame(columns=times).set_index('Order ID')
+
+currentOrder = None
 
 storeLocation = {}
 

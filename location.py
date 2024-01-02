@@ -30,6 +30,9 @@ if api.requires_2fa:
 device = api.devices[1]
 phone = api.iphone
 
+# TODO Handle errors
+
+
 def routeRequest(locations):
     response = requests.get(f"https://api.tomtom.com/routing/1/calculateRoute/{locationsToRoute(locations)}/json?key={TOMKEY}")
     route = response.json()['routes'][0]
