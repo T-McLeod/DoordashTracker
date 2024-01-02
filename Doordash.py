@@ -1,14 +1,15 @@
-import googlemaps
+# import googlemaps
 import tkinter as tk
 # from time import strftime
 from datetime import datetime  # , timedelta
 import pandas as pd
 import os
 from dotenv import load_dotenv
+import location
 
 load_dotenv()
 key = os.getenv("API_KEY")
-gmaps = googlemaps.Client(key)
+# gmaps = googlemaps.Client(key)
 
 """def getDist(origin, dest):
     result = gmaps.distance_matrix(origin, dest)
@@ -79,48 +80,31 @@ def get_inputs():
 
 
 def show_rate():
+    print("here 1")
     store_name, address, payout = get_inputs()
     row = pd.Series({col: None for col in orderInfoDF.columns})
+    print("here 2")
     row['Order ID'] = generateOrderID()
-    row["Origin"] = getOrigin()
-    row['Store Location'] = ""  # get store
-    row["Customer Address"] = address
+    row["Origin"] = (52.50931,13.42936) # location.getDeviceLocation()
+    row['Store Location'] = (52.50274,13.43872) # location.searchPlace(row['Origin'], store_name)
+    row["Customer Address"] = (52.50931,13.42936) # location.addressToLocation(address, row["Origin"])
     row['Payout'] = payout
+    print("here 3")
+    # TODO customer address -> customer location
+    finalTime, subTimes = [600, [200, 400]] # location.routeRequest([row['Origin'], row['Store Location'], row['Customer Address']])
 
-    rate = float(payout) / (float(calculate_time(row)) / 3600)
+    rate = float(payout) / (finalTime / 3600)
 
-    result_label.config(text=f"This order pays ${rate}/hour")
+    result_label.config(text=f"This order pays ${round(rate, 2)}/hour")
+    print("here 4")
+    # Update df entry
+    row["Time to store"] = subTimes[0]
+    row["Time at store"] = 120 # TODO add estimation for this
+    row["Time to customer"] = subTimes[1]
+    row["Time at customer"] = 60 # TODO add estimation for this
+    row["Time to zone"] = 300 # TODO add estimation for this
 
-
-def calculate_time(row):  # untested
-    # Get values
-    storeLocation = row['Store Location']
-    customer = row['Customer Address']
-
-    #  Get store = ??
-    #  gmaps.getPlacesNearby
-    storeLocation = {'lat': 35.9424814, 'lng': -78.9072968}
-
-    # calculate eta for trip
-    pickup_drive = getDist(row['origin'], storeLocation)
-    pickup_store = 120
-
-    dropoff_drive = getDist(storeLocation, customer)
-    dropoff_time = 60
-
-    downtime = 300
-
-    row = pd.Series({col: None for col in predictedDF.columns})
-
-    row["Time to store"] = pickup_drive
-    row["Time at store"] = pickup_store
-    row["Time to customer"] = dropoff_drive
-    row["Time at customer"] = dropoff_time
-    row["Time to zone"] = downtime
-
-    return (pickup_drive + pickup_store + dropoff_drive + dropoff_time +
-            downtime)
-
+    actualDF.append(row)
 
 def accept():
     # Make sure variables are set for df
@@ -153,10 +137,6 @@ def declineOrder():  # TODO finish
     # Backup to df
 
     # Reset text boxes
-    return
-
-
-def getOrigin():
     return
 
 
