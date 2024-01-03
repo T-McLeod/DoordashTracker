@@ -3,6 +3,8 @@ import os
 from dotenv import load_dotenv
 import requests
 
+# TODO Error handling for basically everything
+
 load_dotenv()
 TOMKEY = os.getenv("TOMKEY")
 appleID = os.getenv("appleID")
